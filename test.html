@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>YouTube マルチ画面ビューア</title>
+  <style>
+    html,body{height:100%;margin:0;padding:0;background:#000;color:#fff;font-family:sans-serif;}
+    .container{height:100vh;position:relative;}
+    .layout{position:absolute;inset:0;display:grid;gap:2px;}
+    .layout-4{grid-template:repeat(2,1fr)/repeat(2,1fr);}
+    .layout-6{grid-template:repeat(2,1fr)/repeat(3,1fr);}
+    .layout-6-main{display:grid;grid-template-areas:"a a b""a a c""d e f";grid-template-rows:repeat(3,1fr);grid-template-columns:repeat(3,1fr);}
+    .layout-6-main .v1{grid-area:a;}.layout-6-main .v2{grid-area:b;}.layout-6-main .v3{grid-area:c;}
+    .layout-6-main .v4{grid-area:d;}.layout-6-main .v5{grid-area:e;}.layout-6-main .v6{grid-area:f;}
+    .layout-8{grid-template:repeat(2,1fr)/repeat(4,1fr);}
+    .layout-9{grid-template:repeat(3,1fr)/repeat(3,1fr);}
+    .layout-12{grid-template:repeat(3,1fr)/repeat(4,1fr);}
+    .layout-12-original{display:grid;grid-template-areas:"a a a b c""a a a d e""a a a f g""h i j k l";grid-template-rows:repeat(4,1fr);grid-template-columns:repeat(5,1fr);}
+    .layout-12-original .v1{grid-area:a;}.layout-12-original .v2{grid-area:b;}.layout-12-original .v3{grid-area:c;}
+    .layout-12-original .v4{grid-area:d;}.layout-12-original .v5{grid-area:e;}.layout-12-original .v6{grid-area:f;}
+    .layout-12-original .v7{grid-area:g;}.layout-12-original .v8{grid-area:h;}.layout-12-original .v9{grid-area:i;}
+    .layout-12-original .v10{grid-area:j;}.layout-12-original .v11{grid-area:k;}.layout-12-original .v12{grid-area:l;}
+    .layout-15{grid-template:repeat(3,1fr)/repeat(5,1fr);}
+    .layout-16{grid-template:repeat(4,1fr)/repeat(4,1fr);}
+    .layout-24{grid-template:repeat(4,1fr)/repeat(6,1fr);}
+    .layout-24-main{display:grid;grid-template-areas:"a b c d e f""g h h i i j""k h h i i l""m n n o o p""q n n o o r""s t u v w x";grid-template-rows:repeat(6,1fr);grid-template-columns:repeat(6,1fr);}
+    .layout-24-main .v1{grid-area:a;}.layout-24-main .v2{grid-area:b;}.layout-24-main .v3{grid-area:c;}
+    .layout-24-main .v4{grid-area:d;}.layout-24-main .v5{grid-area:e;}.layout-24-main .v6{grid-area:f;}
+    .layout-24-main .v7{grid-area:g;}.layout-24-main .v8{grid-area:h;}.layout-24-main .v9{grid-area:i;}
+    .layout-24-main .v10{grid-area:j;}.layout-24-main .v11{grid-area:k;}.layout-24-main .v12{grid-area:l;}
+    .layout-24-main .v13{grid-area:m;}.layout-24-main .v14{grid-area:n;}.layout-24-main .v15{grid-area:o;}
+    .layout-24-main .v16{grid-area:p;}.layout-24-main .v17{grid-area:q;}.layout-24-main .v18{grid-area:r;}
+    .layout-24-main .v19{grid-area:s;}.layout-24-main .v20{grid-area:t;}.layout-24-main .v21{grid-area:u;}
+    .layout-24-main .v22{grid-area:v;}.layout-24-main .v23{grid-area:w;}.layout-24-main .v24{grid-area:x;}
+    .layout-25{grid-template:repeat(5,1fr)/repeat(5,1fr);}
+    .layout-36{grid-template:repeat(6,1fr)/repeat(6,1fr);}
+    .video-container{
+      position:relative;
+      padding:0;
+      overflow:hidden;
+      width:100%;
+      height:100%;
+      border:2px solid #444;
+      background:rgba(0,0,0,0.7);
+      box-sizing:border-box;
+      transition: outline 0.2s;
+    }
+    .video-container.noframe {
+      border: none !important;
+      background: none !important;
+    }
+    .video-container iframe{
+      position:absolute;
+      top:0;left:0;
+      width:100%;
+      height:100%;
+      border:none;
+      background:#111;
+      display:block;
+    }
+    .video-number{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:48px;font-weight:bold;color:#666;background:rgba(0,0,0,0.7);z-index:10;border:2px solid #444;border-radius:10px;padding:20px;}
+    .video-number.hidden{display:none;}
+    .reload-btn{position:absolute;top:5px;right:5px;width:30px;height:30px;background:rgba(0,0,0,0.7);color:white;border:1px solid #555;border-radius:4px;cursor:pointer;z-index:20;display:flex;align-items:center;justify-content:center;font-size:16px;opacity:0.5;transition:opacity 0.2s;}
+    .reload-btn:hover{opacity:1;background:rgba(0,0,0,0.9);}
+    .reload-btn.hidden{display:none;}
+    .layout .video-container{display:none;}
+    .layout-4 .video-container:nth-child(-n+4){display:block;}
+    .layout-6 .video-container:nth-child(-n+6){display:block;}
+    .layout-6-main .v1,.layout-6-main .v2,.layout-6-main .v3,.layout-6-main .v4,.layout-6-main .v5,.layout-6-main .v6{display:block;}
+    .layout-8 .video-container:nth-child(-n+8){display:block;}
+    .layout-9 .video-container:nth-child(-n+9){display:block;}
+    .layout-12 .video-container:nth-child(-n+12){display:block;}
+    .layout-12-original .v1,.layout-12-original .v2,.layout-12-original .v3,.layout-12-original .v4,.layout-12-original .v5,.layout-12-original .v6,.layout-12-original .v7,.layout-12-original .v8,.layout-12-original .v9,.layout-12-original .v10,.layout-12-original .v11,.layout-12-original .v12{display:block;}
+    .layout-15 .video-container:nth-child(-n+15){display:block;}
+    .layout-16 .video-container:nth-child(-n+16){display:block;}
+    .layout-24 .video-container:nth-child(-n+24){display:block;}
+    .layout-24-main .v1,.layout-24-main .v2,.layout-24-main .v3,.layout-24-main .v4,.layout-24-main .v5,.layout-24-main .v6,.layout-24-main .v7,.layout-24-main .v8,.layout-24-main .v9,.layout-24-main .v10,.layout-24-main .v11,.layout-24-main .v12,.layout-24-main .v13,.layout-24-main .v14,.layout-24-main .v15,.layout-24-main .v16,.layout-24-main .v17,.layout-24-main .v18,.layout-24-main .v19,.layout-24-main .v20,.layout-24-main .v21,.layout-24-main .v22,.layout-24-main .v23,.layout-24-main .v24{display:block;}
+    .layout-25 .video-container:nth-child(-n+25){display:block;}
+    .layout-36 .video-container:nth-child(-n+36){display:block;}
+    .control-panel{position:fixed;top:0;left:0;width:300px;max-height:100vh;background:rgba(0,0,0,0.8);color:white;padding:15px;z-index:1000;border-radius:0 0 10px 0;box-shadow:0 0 10px rgba(0,0,0,0.5);overflow-y:auto;transform:translateX(-100%);transition:transform 0.3s;}
+    .control-panel.visible{transform:translateX(0);}
+    .control-panel h2{margin-bottom:15px;text-align:center;font-size:18px;}
+    .player-controls,.layout-controls{margin-bottom:15px;padding-bottom:10px;border-bottom:1px solid #444;}
+    .control-btn{background:#333;color:white;border:1px solid #555;border-radius:4px;padding:5px 10px;margin-right:5px;cursor:pointer;}
+    .control-btn:hover{background:#444;}
+    #layoutSelector{background:#333;color:white;border:1px solid #555;border-radius:4px;padding:5px;width:100px;}
+    .controls{display:flex;flex-direction:column;gap:5px;}
+    .controls input{background:#222;color:white;border:1px solid #555;border-radius:4px;padding:5px;width:100%;}
+    .show-panel-btn{position:fixed;top:10px;left:10px;background:rgba(0,0,0,0.7);color:white;border:1px solid #555;border-radius:4px;padding:5px 10px;cursor:pointer;z-index:999;}
+    .show-panel-btn:hover{background:rgba(0,0,0,0.9);}
+    .loading-indicator{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:15;background:rgba(0,0,0,0.7);color:#fff;padding:10px 15px;border-radius:5px;display:none;}
+    .loading-indicator.active{display:block;}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="layout"></div>
+    <button class="show-panel-btn" id="showPanelBtn">操作パネルを表示</button>
+    <div class="control-panel visible" id="controlPanel">
+      <h2>YouTubeマルチ画面ビューア</h2>
+      <div class="player-controls">
+        <button class="control-btn" id="reloadAllBtn">全再読み込み</button>
+        <button class="control-btn" id="togglePanelBtn">非表示</button>
+        <button class="control-btn" id="clearVideosBtn">クリア</button>
+      </div>
+      <div class="layout-controls">
+        <div>レイアウト:</div>
+        <button class="control-btn layout-btn" data-layout="4">4画面</button>
+        <button class="control-btn layout-btn" data-layout="6">6画面</button>
+        <button class="control-btn layout-btn" data-layout="6-main">6‑main</button>
+        <button class="control-btn layout-btn" data-layout="8">8画面</button>
+        <button class="control-btn layout-btn" data-layout="9">9画面</button>
+        <button class="control-btn layout-btn" data-layout="12">12画面</button>
+        <button class="control-btn layout-btn" data-layout="12-original">12‑orig</button>
+        <button class="control-btn layout-btn" data-layout="15">15画面</button>
+        <button class="control-btn layout-btn" data-layout="16">16画面</button>
+        <button class="control-btn layout-btn" data-layout="24">24画面</button>
+        <button class="control-btn layout-btn" data-layout="24-main">24‑main</button>
+        <button class="control-btn layout-btn" data-layout="25">25画面</button>
+        <button class="control-btn layout-btn" data-layout="36">36画面</button>
+      </div>
+      <div class="controls" id="videoControls"></div>
+    </div>
+  </div>
+  <script>
+    const MAX_VIDEOS = 36;
+    const layoutElement = document.querySelector('.layout');
+    const controlPanel = document.getElementById('controlPanel');
+    const videoControls = document.getElementById('videoControls');
+    const showPanelBtn = document.getElementById('showPanelBtn');
+    const reloadAllBtn = document.getElementById('reloadAllBtn');
+    const togglePanelBtn = document.getElementById('togglePanelBtn');
+    const clearVideosBtn = document.getElementById('clearVideosBtn');
+    const layoutBtns = document.querySelectorAll('.layout-btn');
+
+    let videoData = Array(MAX_VIDEOS).fill('');
+    let currentLayout = '4';
+    let loadedIframes = {};
+    let isFullscreenActive = false;
+
+    // --- ローカルストレージ ---
+    const STORAGE_KEY = 'youtubeViewerData';
+    const saveToLocalStorage = () => {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(videoData));
+    };
+    const loadFromLocalStorage = () => {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        try {
+          const arr = JSON.parse(saved);
+          if (Array.isArray(arr) && arr.length === MAX_VIDEOS) {
+            videoData = arr;
+          }
+        } catch {}
+      }
+    };
+
+    // --- YouTube ID抽出 ---
+    const extractYouTubeId = (url) => {
+      if (!url) return null;
+      const regExp = /^.*(youtu.be\/|v\/|e\/|u\/\w+\/|embed\/|v=)([^#&?]*).*/;
+      const match = url.match(regExp);
+      return (match && match[2].length === 11) ? match[2] : null;
+    };
+
+    // --- 動画コンテナ生成 ---
+    const createVideoContainers = () => {
+      layoutElement.innerHTML = '';
+      for (let i = 0; i < MAX_VIDEOS; i++) {
+        const container = document.createElement('div');
+        container.className = `video-container v${i+1}`;
+        container.dataset.index = i;
+        // 番号
+        const numberDisplay = document.createElement('div');
+        numberDisplay.className = 'video-number';
+        numberDisplay.textContent = i + 1;
+        container.appendChild(numberDisplay);
+        // リロードボタン
+        const reloadBtn = document.createElement('button');
+        reloadBtn.className = 'reload-btn';
+        reloadBtn.innerHTML = '↻';
+        reloadBtn.title = '再読み込み';
+        reloadBtn.onclick = (e) => {
+          e.stopPropagation();
+          reloadVideo(i);
+        };
+        container.appendChild(reloadBtn);
+        // ローディングインジケータ
+        const loadingIndicator = document.createElement('div');
+        loadingIndicator.className = 'loading-indicator';
+        loadingIndicator.textContent = '読み込み中...';
+        container.appendChild(loadingIndicator);
+        // クリックでURL入力
+        container.addEventListener('click', () => promptVideoUrl(i));
+        layoutElement.appendChild(container);
+      }
+      updateVideoInputControls();
+      setupDragAndDrop(); // ★ドラッグ＆ドロップ対応
+    };
+
+    // --- ドラッグ＆ドロップでURL設定 ---
+    function setupDragAndDrop() {
+      document.querySelectorAll('.video-container').forEach(container => {
+        // ドラッグオーバー時の見た目
+        container.addEventListener('dragover', e => {
+          const idx = parseInt(container.dataset.index);
+          if (!videoData[idx]) {
+            e.preventDefault();
+            container.style.outline = '2px solid #2af';
+          }
+        });
+        container.addEventListener('dragleave', e => {
+          container.style.outline = '';
+        });
+        container.addEventListener('drop', e => {
+          container.style.outline = '';
+          const idx = parseInt(container.dataset.index);
+          if (videoData[idx]) return;
+          e.preventDefault();
+          const text = (e.dataTransfer && e.dataTransfer.getData('text')) || '';
+          const url = text.trim();
+          if (!url) return;
+          const videoId = extractYouTubeId(url);
+          if (videoId) {
+            videoData[idx] = url;
+            saveToLocalStorage();
+            updateVideoInputControls();
+            const numberDisplay = container.querySelector('.video-number');
+            if (numberDisplay) numberDisplay.classList.add('hidden');
+            loadVideoIntoContainer(container, url, idx);
+          }
+        });
+      });
+    }
+
+    // --- 入力欄制御（レイアウト数に応じて表示/非表示） ---
+    const getVisibleCount = () => {
+      const layoutMap = {
+        '4':4,'6':6,'6-main':6,'8':8,'9':9,'12':12,'12-original':12,
+        '15':15,'16':16,'24':24,'24-main':24,'25':25,'36':36
+      };
+      return layoutMap[currentLayout] || MAX_VIDEOS;
+    };
+    const updateVideoInputControls = () => {
+      videoControls.innerHTML = '';
+      const visibleCount = getVisibleCount();
+      for (let i = 0; i < MAX_VIDEOS; i++) {
+        const control = document.createElement('div');
+        control.style.display = i < visibleCount ? 'flex' : 'none';
+        control.style.marginBottom = '5px';
+        const label = document.createElement('label');
+        label.textContent = `${i + 1}: `;
+        label.style.width = '30px';
+        label.style.flexShrink = '0';
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = videoData[i] || '';
+        input.placeholder = `動画 ${i + 1} URL`;
+        input.addEventListener('change', (e) => {
+          videoData[i] = e.target.value;
+          saveToLocalStorage();
+          const container = document.querySelector(`.video-container[data-index="${i}"]`);
+          if (container) {
+            const numberDisplay = container.querySelector('.video-number');
+            if (numberDisplay) {
+              if (e.target.value) numberDisplay.classList.add('hidden');
+              else numberDisplay.classList.remove('hidden');
+            }
+            if (e.target.value && (isElementInViewport(container) || document.fullscreenElement)) {
+              loadVideoIntoContainer(container, e.target.value, i);
+            } else if (!e.target.value && loadedIframes[i]) {
+              // --- 動画URLが消された場合は枠と数字を復活 ---
+              const iframe = loadedIframes[i];
+              if (iframe && iframe.parentNode) {
+                iframe.src = 'about:blank';
+                iframe.parentNode.removeChild(iframe);
+                delete loadedIframes[i];
+              }
+              container.classList.remove('noframe');
+              if (numberDisplay) numberDisplay.style.display = '';
+            }
+          }
+        });
+        control.appendChild(label);
+        control.appendChild(input);
+        videoControls.appendChild(control);
+      }
+    };
+
+    // --- URL入力プロンプト ---
+    const promptVideoUrl = (index) => {
+      const currentUrl = videoData[index] || '';
+      const newUrl = prompt(`動画${index + 1}のYouTube URLを入力:`, currentUrl);
+      if (newUrl !== null) {
+        videoData[index] = newUrl;
+        saveToLocalStorage();
+        updateVideoInputControls();
+        const container = document.querySelector(`.video-container[data-index="${index}"]`);
+        if (container) {
+          const numberDisplay = container.querySelector('.video-number');
+          if (numberDisplay) numberDisplay.classList.add('hidden');
+          if (isElementInViewport(container) || document.fullscreenElement) {
+            loadVideoIntoContainer(container, newUrl, index);
+          }
+        }
+      }
+    };
+
+    // --- ビューポート内判定 ---
+    const isElementInViewport = (el) => {
+      const rect = el.getBoundingClientRect();
+      return (
+        rect.top >= -100 &&
+        rect.left >= -100 &&
+        rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) + 100 &&
+        rect.right <= (window.innerWidth || document.documentElement.clientWidth) + 100
+      );
+    };
+
+    // --- ロード最適化: IntersectionObserverで遅延ロード ---
+    let observer = null;
+    function setupIntersectionObserver() {
+      if (observer) observer.disconnect();
+      observer = new window.IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          const container = entry.target;
+          const index = parseInt(container.dataset.index);
+          if (entry.isIntersecting) {
+            if (videoData[index] && !loadedIframes[index]) {
+              loadVideoIntoContainer(container, videoData[index], index);
+            }
+          } else if (!isFullscreenActive && loadedIframes[index]) {
+            const iframe = loadedIframes[index];
+            if (iframe && iframe.parentNode) {
+              iframe.src = 'about:blank';
+              iframe.parentNode.removeChild(iframe);
+              delete loadedIframes[index];
+              // --- 枠と数字を復活 ---
+              container.classList.remove('noframe');
+              const numberDisplay = container.querySelector('.video-number');
+              if (numberDisplay) numberDisplay.style.display = '';
+            }
+          }
+        });
+      }, {
+        root: null,
+        rootMargin: '200px',
+        threshold: 0.05
+      });
+      document.querySelectorAll('.video-container').forEach(container => {
+        observer.observe(container);
+      });
+    }
+
+    // --- iframe生成＆自動再生 ---
+    const loadVideoIntoContainer = (container, videoUrl, index) => {
+      if (!videoUrl || loadedIframes[index]) return;
+      const videoId = extractYouTubeId(videoUrl);
+      if (!videoId) return;
+      const loadingIndicator = container.querySelector('.loading-indicator');
+      if (loadingIndicator) loadingIndicator.classList.add('active');
+      const existingIframe = container.querySelector('iframe');
+      if (existingIframe) {
+        existingIframe.src = 'about:blank';
+        container.removeChild(existingIframe);
+      }
+      setTimeout(() => {
+        const iframe = document.createElement('iframe');
+        iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&enablejsapi=1`;
+        iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
+        iframe.allowFullscreen = true;
+        iframe.onload = () => {
+          if (loadingIndicator) loadingIndicator.classList.remove('active');
+          // --- ここで枠と数字を消す ---
+          container.classList.add('noframe');
+          const numberDisplay = container.querySelector('.video-number');
+          if (numberDisplay) numberDisplay.style.display = 'none';
+        };
+        iframe.onerror = () => {
+          if (loadingIndicator) loadingIndicator.classList.remove('active');
+        };
+        container.appendChild(iframe);
+        loadedIframes[index] = iframe;
+      }, 50 * (index % 6));
+    };
+
+    // --- 1つずつ順番に全再読み込み ---
+    const reloadAllVideos = () => {
+      const visibleContainers = Array.from(document.querySelectorAll('.video-container'))
+        .filter(c => c.style.display !== 'none' && videoData[c.dataset.index]);
+      let i = 0;
+      function reloadNext() {
+        if (i >= visibleContainers.length) return;
+        const container = visibleContainers[i];
+        const index = parseInt(container.dataset.index);
+        reloadVideoWithCallback(index, () => {
+          i++;
+          reloadNext();
+        });
+      }
+      reloadNext();
+    };
+
+    function reloadVideoWithCallback(index, cb) {
+      const url = videoData[index];
+      if (!url) { cb && cb(); return; }
+      if (loadedIframes[index]) {
+        const iframe = loadedIframes[index];
+        if (iframe && iframe.parentNode) {
+          iframe.src = 'about:blank';
+          iframe.parentNode.removeChild(iframe);
+          delete loadedIframes[index];
+        }
+      }
+      const container = document.querySelector(`.video-container[data-index="${index}"]`);
+      if (container && (isElementInViewport(container) || document.fullscreenElement)) {
+        loadVideoIntoContainerWithCallback(container, url, index, cb);
+      } else {
+        cb && cb();
+      }
+    }
+
+    function loadVideoIntoContainerWithCallback(container, videoUrl, index, cb) {
+      if (!videoUrl) { cb && cb(); return; }
+      const videoId = extractYouTubeId(videoUrl);
+      if (!videoId) { cb && cb(); return; }
+      const loadingIndicator = container.querySelector('.loading-indicator');
+      if (loadingIndicator) loadingIndicator.classList.add('active');
+      const existingIframe = container.querySelector('iframe');
+      if (existingIframe) {
+        existingIframe.src = 'about:blank';
+        container.removeChild(existingIframe);
+      }
+      setTimeout(() => {
+        const iframe = document.createElement('iframe');
+        iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&enablejsapi=1`;
+        iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
+        iframe.allowFullscreen = true;
+        iframe.onload = () => {
+          if (loadingIndicator) loadingIndicator.classList.remove('active');
+          container.classList.add('noframe');
+          const numberDisplay = container.querySelector('.video-number');
+          if (numberDisplay) numberDisplay.style.display = 'none';
+          cb && cb();
+        };
+        iframe.onerror = () => {
+          if (loadingIndicator) loadingIndicator.classList.remove('active');
+          cb && cb();
+        };
+        container.appendChild(iframe);
+        loadedIframes[index] = iframe;
+      }, 50 * (index % 6));
+    }
+
+    // --- ビデオ再読み込み（単体） ---
+    const reloadVideo = (index) => {
+      const url = videoData[index];
+      if (!url) return;
+      if (loadedIframes[index]) {
+        const iframe = loadedIframes[index];
+        if (iframe && iframe.parentNode) {
+          iframe.src = 'about:blank';
+          iframe.parentNode.removeChild(iframe);
+          delete loadedIframes[index];
+        }
+      }
+      const container = document.querySelector(`.video-container[data-index="${index}"]`);
+      if (container && (isElementInViewport(container) || document.fullscreenElement)) {
+        loadVideoIntoContainer(container, url, index);
+      }
+    };
+
+    // --- クリア ---
+    const clearAllVideos = () => {
+      if (confirm('すべてのビデオをクリアしますか？')) {
+        videoData = Array(MAX_VIDEOS).fill('');
+        saveToLocalStorage();
+        Object.keys(loadedIframes).forEach(index => {
+          const iframe = loadedIframes[index];
+          if (iframe && iframe.parentNode) {
+            iframe.src = 'about:blank';
+            iframe.parentNode.removeChild(iframe);
+          }
+        });
+        loadedIframes = {};
+        document.querySelectorAll('.video-number').forEach(num => {
+          num.classList.remove('hidden');
+          num.style.display = '';
+        });
+        document.querySelectorAll('.video-container').forEach(container => {
+          container.classList.remove('noframe');
+        });
+        updateVideoInputControls();
+        setupDragAndDrop();
+      }
+    };
+
+    // --- レイアウト切り替え ---
+    const changeLayout = (layout) => {
+      currentLayout = layout;
+      layoutElement.className = `layout layout-${layout}`;
+      updateVideoInputControls();
+      setupIntersectionObserver();
+      setupDragAndDrop();
+      document.querySelectorAll('.video-container').forEach(container => {
+        const index = parseInt(container.dataset.index);
+        if (container.style.display !== 'none' && videoData[index] && !loadedIframes[index]) {
+          if (isElementInViewport(container) || document.fullscreenElement) {
+            loadVideoIntoContainer(container, videoData[index], index);
+          }
+        }
+      });
+      window.scrollTo(0, 0);
+    };
+
+    // --- フルスクリーン監視 ---
+    const setupFullscreenListener = () => {
+      const fullscreenChangeHandler = () => {
+        isFullscreenActive = !!document.fullscreenElement;
+        if (isFullscreenActive) {
+          const visibleContainers = Array.from(document.querySelectorAll('.video-container'))
+            .filter(c => c.style.display !== 'none' && videoData[c.dataset.index]);
+          let index = 0;
+          function loadNextBatch() {
+            const batch = visibleContainers.slice(index, index + 4);
+            if (batch.length === 0) return;
+            batch.forEach(container => {
+              const idx = parseInt(container.dataset.index);
+              const url = videoData[idx];
+              if (url) loadVideoIntoContainer(container, url, idx);
+            });
+            index += batch.length;
+            if (index < visibleContainers.length) {
+              setTimeout(loadNextBatch, 300);
+            }
+          }
+          setTimeout(loadNextBatch, 200);
+        }
+      };
+      document.addEventListener('fullscreenchange', fullscreenChangeHandler);
+      document.addEventListener('webkitfullscreenchange', fullscreenChangeHandler);
+      document.addEventListener('mozfullscreenchange', fullscreenChangeHandler);
+      document.addEventListener('MSFullscreenChange', fullscreenChangeHandler);
+    };
+
+    // --- コントロールパネル表示 ---
+    showPanelBtn.addEventListener('click', () => {
+      controlPanel.classList.add('visible');
+    });
+    togglePanelBtn.addEventListener('click', () => {
+      controlPanel.classList.toggle('visible');
+      togglePanelBtn.textContent = controlPanel.classList.contains('visible') ? '非表示' : '表示';
+    });
+    reloadAllBtn.addEventListener('click', reloadAllVideos);
+    clearVideosBtn.addEventListener('click', clearAllVideos);
+    layoutBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        changeLayout(btn.dataset.layout);
+      });
+    });
+
+    // --- スクロール・リサイズ時の遅延ロード ---
+    let scrollTimeout;
+    window.addEventListener('scroll', () => {
+      if (scrollTimeout) clearTimeout(scrollTimeout);
+      scrollTimeout = setTimeout(() => {
+        document.querySelectorAll('.video-container').forEach(container => {
+          const index = parseInt(container.dataset.index);
+          const url = videoData[index];
+          if (url && isElementInViewport(container) && !loadedIframes[index]) {
+            loadVideoIntoContainer(container, url, index);
+          }
+        });
+      }, 200);
+    });
+    let resizeTimeout;
+    window.addEventListener('resize', () => {
+      if (resizeTimeout) clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
+        document.querySelectorAll('.video-container').forEach(container => {
+          const index = parseInt(container.dataset.index);
+          const url = videoData[index];
+          if (url && isElementInViewport(container) && !loadedIframes[index]) {
+            loadVideoIntoContainer(container, url, index);
+          }
+        });
+      }, 200);
+    });
+
+    // --- ページ離脱時保存 ---
+    window.addEventListener('beforeunload', saveToLocalStorage);
+
+    // --- 初期ボタンラベル調整 ---
+    togglePanelBtn.textContent = controlPanel.classList.contains('visible') ? '非表示' : '表示';
+
+    // --- ライブ配信の遅延検知＆自動リロード ---
+    function isLiveStream(url) {
+      if (!url) return false;
+      return /[?&\/](live|live_stream|\/live\/)/i.test(url) || url.includes("youtube.com/live");
+    }
+    let liveDelayCheckTimer = null;
+    function startLiveDelayChecker() {
+      stopLiveDelayChecker();
+      liveDelayCheckTimer = setInterval(checkAllLiveDelays, 30000); // 30秒ごと
+    }
+    function stopLiveDelayChecker() {
+      if (liveDelayCheckTimer) clearInterval(liveDelayCheckTimer);
+      liveDelayCheckTimer = null;
+    }
+    function checkAllLiveDelays() {
+      Object.keys(loadedIframes).forEach(index => {
+        const url = videoData[index];
+        if (!isLiveStream(url)) return;
+        const iframe = loadedIframes[index];
+        if (!iframe || !iframe.contentWindow) return;
+        const playerId = "ytplayer" + index;
+        try {
+          iframe.contentWindow.postMessage(JSON.stringify({
+            event: "listening",
+            id: playerId
+          }), "*");
+          iframe.contentWindow.postMessage(JSON.stringify({
+            event: "command",
+            func: "getCurrentTime",
+            id: playerId
+          }), "*");
+        } catch (e) {}
+      });
+    }
+    window.addEventListener("message", function(event) {
+      let data;
+      try {
+        data = typeof event.data === "string" ? JSON.parse(event.data) : event.data;
+      } catch(e) { return; }
+      if (!data || !data.info || typeof data.id !== "string" || !data.event) return;
+      if (data.event === "infoDelivery" && typeof data.info.currentTime === "number") {
+        const index = parseInt(data.id.replace("ytplayer", ""));
+        if (isNaN(index)) return;
+        if (data.info.livePlayback) {
+          if (data.info.currentTime < 10) {
+            reloadVideoWithCallback(index);
+          }
+        }
+      }
+    });
+    startLiveDelayChecker();
+
+    // --- 初期化 ---
+    loadFromLocalStorage();
+    createVideoContainers();
+    changeLayout('4');
+    setupFullscreenListener();
+    setupIntersectionObserver();
+  </script>
+</body>
+</html>
